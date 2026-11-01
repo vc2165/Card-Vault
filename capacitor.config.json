@@ -1,0 +1,9 @@
+{
+  "appId": "com.vinay.cardvault",
+  "appName": "Card Vault",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

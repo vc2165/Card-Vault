@@ -159,6 +159,11 @@ const ICON = {
 const COLORS = ['midnight','ocean','emerald','violet','crimson','rose','gold','sunset','slate','metal'];
 const NETWORKS = {visa:'VISA',mastercard:'Mastercard',rupay:'RuPay',amex:'AMEX',diners:'Diners',discover:'Discover',maestro:'Maestro',jcb:'JCB',other:''};
 
+/* Native (APK) bridge — present only when running as the installed Android app */
+const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const nat=(plugin,method,opts={})=>window.Capacitor.nativePromise(plugin,method,opts);
+const BIO_SERVER='cardvault-master';
+
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
 
 /* ============ Card helpers ============ */
@@ -223,7 +228,7 @@ async function decryptBlob(blob,pass){
 }
 
 let K=null,SALT=null,KITER=ITER,V=null;
-let settings={autolock:3};
+let settings={autolock:3,bio:false,bioAsked:false};
 try{Object.assign(settings,JSON.parse(localStorage.getItem(SETTINGS)||'{}'))}catch(e){}
 const saveSettings=()=>localStorage.setItem(SETTINGS,JSON.stringify(settings));
 
@@ -238,6 +243,55 @@ async function createVault(pass,data){
   V.meta=V.meta||{};
   await persist();
 }
+/* ============ Fingerprint (APK only) ============ */
+async function bioAvailable(){
+  if(!NATIVE)return false;
+  try{const r=await nat('NativeBiometric','isAvailable',{useFallback:false});return !!r.isAvailable}catch(e){return false}
+}
+async function enableBio(pw){
+  picking=true;
+  try{
+    await nat('NativeBiometric','setCredentials',{username:'cardvault',password:pw,server:BIO_SERVER,accessControl:2,title:'Confirm your fingerprint',negativeButtonText:'Cancel'});
+    settings.bio=true;saveSettings();toast('Fingerprint unlock is on');return true;
+  }catch(e){toast('Fingerprint not turned on'+(e&&e.message?' — '+e.message:''));return false}
+  finally{setTimeout(()=>{picking=false},800)}
+}
+async function disableBio(){
+  settings.bio=false;saveSettings();
+  if(NATIVE){try{await nat('NativeBiometric','deleteCredentials',{server:BIO_SERVER})}catch(e){}}
+}
+let bioBusy=false;
+async function bioUnlock(){
+  if(bioBusy||K||!NATIVE||!settings.bio)return;
+  bioBusy=true;picking=true;
+  const err=$('#err');
+  try{
+    const cred=await nat('NativeBiometric','getSecureCredentials',{server:BIO_SERVER,title:'Unlock Card Vault',subtitle:'Touch the fingerprint sensor',negativeButtonText:'Use password'});
+    let r;
+    try{r=await decryptBlob(JSON.parse(localStorage.getItem(STORE)),cred.password)}
+    catch(x){await disableBio();if(err)err.textContent='Saved fingerprint key no longer matches. Unlock with your password, then turn fingerprint on again in Settings.';return}
+    onUnlocked(r);
+  }catch(e){
+    const msg=(e&&e.message)||'';
+    if((e&&e.code==='21')||/No protected/i.test(msg)){await disableBio();renderLock();if($('#err'))$('#err').textContent='Fingerprint unlock was reset. Use your password.';}
+    else if(err&&!/cancel/i.test(msg)&&msg)err.textContent=msg;
+  }finally{bioBusy=false;setTimeout(()=>{picking=false},800)}
+}
+function onUnlocked(r){
+  K=r.key;SALT=r.salt;KITER=r.iter;V=r.data;V.cards=V.cards||[];V.meta=V.meta||{};
+  bump();renderMain();
+}
+async function offerBio(pw){
+  if(!NATIVE||settings.bio||settings.bioAsked)return;
+  if(!(await bioAvailable()))return;
+  settings.bioAsked=true;saveSettings();
+  openSheet(`<div class="sheet-h"><h2>Use fingerprint to unlock?</h2></div>
+    <p class="muted">Unlock Card Vault with your fingerprint instead of typing the master password. Your password is stored in the phone's secure hardware and can only be read after a fingerprint check.</p>
+    <div class="btns"><button class="btn" id="bioNo">Not now</button><button class="btn primary" id="bioYes">Turn on</button></div>`);
+  $('#bioNo').onclick=()=>closeSheet();
+  $('#bioYes').onclick=async()=>{await enableBio(pw);closeSheet()};
+}
+
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
 /* ============ Auto-lock ============ */
@@ -246,7 +300,7 @@ function bump(){if(!K)return;clearTimeout(lockTimer);lockTimer=setTimeout(lock,s
 ['pointerdown','keydown','scroll','touchstart'].forEach(e=>addEventListener(e,bump,{passive:true}));
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){hiddenAt=Date.now();document.body.classList.add('blur')}
-  else{document.body.classList.remove('blur');if(K&&!picking&&Date.now()-hiddenAt>30000)lock()}
+  else{document.body.classList.remove('blur');const away=Date.now()-hiddenAt>30000;if(K&&!picking&&away)lock();else if(!K&&!picking&&away&&settings.bio&&$('#bioBtn'))bioUnlock()}
 });
 function lock(){
   K=null;V=null;SALT=null;clearTimeout(lockTimer);
@@ -280,6 +334,15 @@ function pickFile(){
   });
 }
 async function downloadJSON(obj,name){
+  if(NATIVE){
+    picking=true;
+    try{
+      const r=await nat('Filesystem','writeFile',{path:name,data:JSON.stringify(obj),directory:'CACHE',encoding:'utf8'});
+      await nat('Share','share',{title:name,dialogTitle:'Save backup to…',files:[r.uri]});
+    }catch(e){if(!/cancel/i.test((e&&e.message)||''))toast('Could not save backup: '+((e&&e.message)||e))}
+    finally{setTimeout(()=>{picking=false},800)}
+    return;
+  }
   const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});
   const file=new File([blob],name,{type:'application/json'});
   const ios=/iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -311,9 +374,12 @@ function renderLock(restoreBlob){
     </form>
     ${mode==='create'?'<button class="link" id="restoreBtn">Restore from a backup file</button>':''}
     ${mode==='restore'?'<button class="link" id="cancelRestore">Cancel</button>':''}
+    ${mode==='unlock'&&NATIVE&&settings.bio?'<button class="btn" id="bioBtn" style="margin-top:6px">🔒 Unlock with fingerprint</button>':''}
   </div>`;
   const err=$('#err'),go=$('#go');
-  setTimeout(()=>$('#pw').focus(),50);
+  const bb=$('#bioBtn');
+  if(bb){bb.onclick=bioUnlock;if(!document.hidden)setTimeout(bioUnlock,250)}
+  else setTimeout(()=>$('#pw').focus(),50);
   $('#lockForm').onsubmit=async e=>{
     e.preventDefault();err.textContent='';
     const pw=$('#pw').value;
@@ -335,6 +401,7 @@ function renderLock(restoreBlob){
       }
       bump();renderMain();
       if(mode==='restore')toast(`Restored ${V.cards.length} card(s)`);
+      offerBio(pw);
     }catch(x){err.textContent=x.message||'Something went wrong.';go.disabled=false;go.textContent={unlock:'Unlock',create:'Create vault',restore:'Restore backup'}[mode]}
   };
   const rb=$('#restoreBtn');
@@ -475,9 +542,10 @@ function openDetail(id){
   });
 }
 async function copy(text,secret){
-  try{await navigator.clipboard.writeText(String(text));toast(secret?'Copied · clipboard clears in 45s':'Copied')}
+  const write=v=>NATIVE?nat('Clipboard','write',{string:v}):navigator.clipboard.writeText(v);
+  try{await write(String(text));toast(secret?'Copied · clipboard clears in 45s':'Copied')}
   catch(e){toast('Copy failed')}
-  if(secret){setTimeout(()=>{navigator.clipboard.writeText('').catch(()=>{})},45000)}
+  if(secret){setTimeout(()=>{write(' ').catch(()=>{})},45000)}
 }
 
 /* ============ Add / Edit ============ */
@@ -583,10 +651,11 @@ function openSettings(){
     </div>
     <div class="section-t">Security</div>
     <div class="fields">
+      ${NATIVE?`<div class="set-item"><div><div>Unlock with fingerprint</div><div class="muted" style="font-size:12px">${settings.bio?'On':'Off'}</div></div><button class="btn" id="bioToggle">${settings.bio?'Turn off':'Turn on'}</button></div>`:''}
       <div class="set-item"><div>Change master password</div><button class="btn" id="pwBtn">Change</button></div>
       <div class="set-item"><div><div style="color:var(--danger)">Erase everything</div><div class="muted" style="font-size:12px">Deletes all cards from this phone</div></div><button class="btn danger" id="wipeBtn">Erase</button></div>
     </div>
-    <p class="muted" style="font-size:12px;margin-top:16px;line-height:1.5">Your cards are encrypted with AES-256 (key derived from your master password with PBKDF2, ${ITER.toLocaleString('en-IN')} rounds) and stored only in this browser on this phone. The app has no network access, so nothing is ever uploaded.</p>
+    <p class="muted" style="font-size:12px;margin-top:16px;line-height:1.5">Your cards are encrypted with AES-256 (key derived from your master password with PBKDF2, ${ITER.toLocaleString('en-IN')} rounds) and stored only on this phone. The app has no network access, so nothing is ever uploaded.</p>
   `);
   $('#closeBtn').onclick=()=>closeSheet();
   $('#autolock').onchange=e=>{settings.autolock=+e.target.value;saveSettings();bump();toast('Saved')};
@@ -594,10 +663,24 @@ function openSettings(){
   $('#impBtn').onclick=importBackup;
   $('#bwBtn').onclick=importBitwarden;
   $('#pwBtn').onclick=openChangePw;
+  const bt=$('#bioToggle');
+  if(bt)bt.onclick=async()=>{
+    if(settings.bio){await disableBio();toast('Fingerprint unlock is off');openSettings();return}
+    if(!(await bioAvailable())){toast('No fingerprint set up on this phone (Settings → Security)');return}
+    openSheet(`<div class="sheet-h"><h2>Turn on fingerprint</h2><button class="icon-btn" id="closeBtn" aria-label="Close">${ICON.x}</button></div>
+      <form id="bf"><label>Master password</label><input type="password" id="bpw" autocomplete="current-password" required>
+      <p class="err" id="berr"></p><div class="btns"><button class="btn primary" type="submit" id="bgo">Continue</button></div></form>`);
+    $('#closeBtn').onclick=()=>openSettings();
+    $('#bf').onsubmit=async e=>{
+      e.preventDefault();const pw=$('#bpw').value;$('#bgo').disabled=true;
+      try{await decryptBlob(JSON.parse(localStorage.getItem(STORE)),pw)}catch(x){$('#berr').textContent='Wrong password.';$('#bgo').disabled=false;return}
+      await enableBio(pw);openSettings();
+    };
+  };
   $('#wipeBtn').onclick=()=>{
     const t=prompt('This permanently deletes all cards on this phone. Type DELETE to confirm.');
     if(t!=='DELETE')return;
-    localStorage.removeItem(STORE);K=null;V=null;SALT=null;closeSheet();renderLock();toast('Vault erased');
+    localStorage.removeItem(STORE);disableBio();settings.bioAsked=false;saveSettings();K=null;V=null;SALT=null;closeSheet();renderLock();toast('Vault erased');
   };
 }
 async function exportBackup(){
@@ -667,6 +750,7 @@ function openChangePw(){
     $('#cpgo').disabled=true;
     try{await decryptBlob(JSON.parse(localStorage.getItem(STORE)),p0)}catch(x){err.textContent='Current password is wrong.';$('#cpgo').disabled=false;return}
     await createVault(p1,V);closeSheet();toast('Master password changed');
+    if(settings.bio&&!(await enableBio(p1))){await disableBio();toast('Password changed. Turn fingerprint on again in Settings.')}
   };
 }
 
@@ -676,7 +760,7 @@ if(!window.crypto||!crypto.subtle){
 }else{
   renderLock();
 }
-if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+if(!NATIVE&&'serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 </script>
