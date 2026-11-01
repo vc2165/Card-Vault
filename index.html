@@ -86,6 +86,38 @@ header .actions{display:flex;gap:8px}
 .list{display:flex;flex-direction:column;gap:14px}
 .empty{text-align:center;padding:50px 20px;color:var(--muted)}
 
+/* Runway */
+.runway{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:1px solid rgba(124,92,255,.45);background:linear-gradient(135deg,rgba(124,92,255,.22),rgba(34,195,166,.12));border-radius:16px;padding:12px 14px;margin-bottom:12px;cursor:pointer;color:var(--text);transition:transform .12s}
+.runway:active{transform:scale(.98)}
+.runway .k{font-size:12px;color:#c9c0ff;font-weight:600;letter-spacing:.04em}
+.runway .v{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.runway .r{text-align:right;min-width:0}
+.runway .r div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rw-quick{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.rw-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+.rw-row:first-child{border-top:0}
+.rw-row.best{background:linear-gradient(135deg,rgba(124,92,255,.2),rgba(34,195,166,.1))}
+.rw-rank{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:var(--panel);border:1px solid var(--line);flex:none}
+.rw-row.best .rw-rank{background:var(--accent);border-color:var(--accent);color:#fff}
+.rw-mid{flex:1;min-width:0}
+.rw-mid .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rw-mid .s{font-size:12px;color:var(--muted)}
+.rw-days{text-align:right;flex:none}
+.rw-days b{font-size:20px;display:block;line-height:1.1}
+.rw-days span{font-size:11px;color:var(--muted)}
+.rw-warn{color:var(--warn)!important}
+/* Arrange */
+.arow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-top:1px solid var(--line);background:var(--panel2);transition:background .15s,box-shadow .15s}
+.arow:first-child{border-top:0}
+.arow.dragging{background:#262c38;box-shadow:0 8px 24px rgba(0,0,0,.45);position:relative;z-index:2}
+.arow .sw{width:34px;height:22px;border-radius:5px;flex:none}
+.arow .grow{flex:1;min-width:0}
+.arow .grow div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arow .mv{background:var(--panel);border:1px solid var(--line);border-radius:9px;width:34px;height:34px;cursor:pointer;color:var(--text);flex:none;font-size:14px}
+.arow .handle{width:36px;height:40px;display:grid;place-items:center;color:var(--muted);touch-action:none;cursor:grab;flex:none}
+.arow .handle svg{width:20px;height:20px}
+.tools-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
 /* Card visual */
 .tile{box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;width:100%;aspect-ratio:1.586;border-radius:20px;padding:18px 20px;color:#fff;position:relative;overflow:hidden;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.4);transition:transform .15s var(--ease);outline:none}
 .list .tile{animation:tileIn .35s var(--ease) both}
@@ -201,7 +233,7 @@ const uid = () => b64(crypto.getRandomValues(new Uint8Array(9))).replace(/[+/=]/
 const inr = n => '₹' + Number(n||0).toLocaleString('en-IN');
 const STORE = 'cardvault.v1', SETTINGS = 'cardvault.settings';
 const ITER = 310000;
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 
 /* Native (APK) bridge — present only when running as the installed Android app */
 const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
@@ -217,16 +249,27 @@ const ICON = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>',
   finger:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11c0 3.5-.6 6.5-2 9"/><path d="M8.5 7.5A5 5 0 0 1 17 11c0 2.2-.2 4.3-.7 6.2"/><path d="M5.6 9.5A7 7 0 0 1 19 11c0 1.1 0 2.2-.1 3.2"/><path d="M8.3 12.2c-.1 2.5-.6 4.8-1.6 6.8"/><path d="M14.6 11c0 3-.4 5.9-1.3 8.6"/><path d="M4 15c.3-1 .4-2 .4-3"/><path d="M6.7 4.7A9 9 0 0 1 21 9"/></svg>',
+  grip:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+  sort:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>',
+  plane:'<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" style="vertical-align:-2px"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>',
   logo:'<svg viewBox="0 0 512 512"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22c3a6"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#161a22"/><rect x="96" y="150" width="320" height="212" rx="28" fill="url(#lg)"/><rect x="96" y="196" width="320" height="40" fill="#0e1116" opacity=".55"/><rect x="128" y="276" width="70" height="50" rx="10" fill="#f5d77a"/><rect x="232" y="296" width="150" height="14" rx="7" fill="#fff" opacity=".8"/></svg>'
 };
 const COLORS = ['midnight','ocean','emerald','violet','crimson','rose','gold','sunset','slate','metal'];
 const NETWORKS = {visa:'VISA',mastercard:'Mastercard',rupay:'RuPay',amex:'AMEX',diners:'Diners',discover:'Discover',maestro:'Maestro',jcb:'JCB',other:''};
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2000)}
-function haptic(kind='light'){
-  if(!NATIVE){if(navigator.vibrate)try{navigator.vibrate(kind==='error'?[30,40,30]:8)}catch(e){}return}
-  const p=kind==='success'?nat('Haptics','notification',{type:'SUCCESS'}):kind==='error'?nat('Haptics','notification',{type:'ERROR'}):kind==='warn'?nat('Haptics','notification',{type:'WARNING'}):nat('Haptics','impact',{style:kind==='medium'?'MEDIUM':'LIGHT'});
-  p.catch(()=>{});
+/* Vibration: kind = tap | success | error | warn | tick ; level from Settings (off/subtle/light/medium) */
+function haptic(kind='tap',levelOverride){
+  const level=levelOverride||settings.haptics||'light';
+  if(level==='off')return;
+  if(!NATIVE){const ms={subtle:4,light:8,medium:18}[level]||8;if(navigator.vibrate)try{navigator.vibrate(kind==='error'?[ms,40,ms]:ms)}catch(e){}return}
+  if(level==='medium'){
+    const p=kind==='success'?nat('Haptics','notification',{type:'SUCCESS'}):kind==='error'?nat('Haptics','notification',{type:'ERROR'}):nat('Haptics','impact',{style:'MEDIUM'});
+    return p.catch(()=>{});
+  }
+  // subtle / light use Android's own system haptics (crisp, low-strength ticks)
+  const sys=level==='subtle'?'tick':kind==='success'?'confirm':kind==='error'?'reject':kind==='tick'?'tick':'tap';
+  nat('Tick','tick',{kind:sys}).catch(()=>nat('Haptics','impact',{style:'LIGHT'}).catch(()=>{}));
 }
 
 /* ============ Card helpers ============ */
@@ -279,6 +322,19 @@ function expiryStatus(c){
   return null;
 }
 function ordinal(n){n=+n;const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
+/* Runway: buy on date P -> lands on the next statement (statement day itself counts as that bill, the cautious choice) -> pay by the due date after it */
+const atDay=(y,m,day)=>new Date(y,m,Math.min(+day,daysIn(y,m)));
+function runwayFor(c,P){
+  if(c.type!=='credit'||!c.statementDay||!c.dueDay)return null;
+  let stmt=atDay(P.getFullYear(),P.getMonth(),c.statementDay);
+  if(stmt<P)stmt=atDay(P.getFullYear(),P.getMonth()+1,c.statementDay);
+  let due=atDay(stmt.getFullYear(),stmt.getMonth(),c.dueDay);
+  if(due<=stmt)due=atDay(stmt.getFullYear(),stmt.getMonth()+1,c.dueDay);
+  return {c,stmt,due,days:Math.round((due-P)/864e5),edge:stmt.getTime()===P.getTime()};
+}
+function runwayRank(P){
+  return V.cards.map(c=>runwayFor(c,P)).filter(Boolean).sort((a,b)=>b.days-a.days||nameOf(a.c).localeCompare(nameOf(b.c)));
+}
 const isPaid=(c,d)=>!!(V.meta.paid&&V.meta.paid[c.id]===isoDay(d));
 
 /* Shared credit limits: cards with the same limitGroup share one limit */
@@ -309,7 +365,7 @@ async function decryptBlob(blob,pass){
   return {key,salt,iter:blob.iter,data:JSON.parse(dec.decode(pt))};
 }
 let K=null,SALT=null,KITER=ITER,V=null;
-let settings={autolock:3,bio:false,bioAsked:false,remind:{on:false,daysBefore:3,onDay:true,hour:9},remindAsked:false};
+let settings={autolock:3,bio:false,bioAsked:false,haptics:'light',remind:{on:false,daysBefore:3,onDay:true,hour:9,statement:false},remindAsked:false};
 try{const s=JSON.parse(localStorage.getItem(SETTINGS)||'{}');Object.assign(settings,s,{remind:Object.assign({},settings.remind,s.remind||{})})}catch(e){}
 const saveSettings=()=>localStorage.setItem(SETTINGS,JSON.stringify(settings));
 async function persist(){localStorage.setItem(STORE,JSON.stringify(await encryptWith(K,SALT,KITER,V)))}
@@ -360,7 +416,7 @@ $('#scrim').addEventListener('click',()=>closeAllSheets());
 
 /* swipe down on a sheet to dismiss it */
 let drag=null;
-sheetEl.addEventListener('touchstart',e=>{drag=sheetEl.scrollTop<=0?{y:e.touches[0].clientY,dy:0,on:false}:null},{passive:true});
+sheetEl.addEventListener('touchstart',e=>{drag=sheetEl.scrollTop<=0&&!e.target.closest('.handle,input[type=date]')?{y:e.touches[0].clientY,dy:0,on:false}:null},{passive:true});
 sheetEl.addEventListener('touchmove',e=>{
   if(!drag)return;
   const dy=e.touches[0].clientY-drag.y;
@@ -434,7 +490,7 @@ async function bioUnlock(){
     let r;
     try{r=await decryptBlob(JSON.parse(localStorage.getItem(STORE)),cred.password)}
     catch(x){await disableBio();renderLock(null,false);$('#err').textContent='Fingerprint key is out of date. Unlock with your password, then turn fingerprint on again in Settings.';return}
-    haptic('light');onUnlocked(r);
+    haptic('tap');onUnlocked(r);
   }catch(e){
     const msg=(e&&e.message)||'';
     if((e&&e.code==='21')||/No protected/i.test(msg)){await disableBio();renderLock(null,false);$('#err').textContent='Fingerprint unlock was reset. Use your password.'}
@@ -465,11 +521,17 @@ async function scheduleReminders(){
   try{
     const pend=await nat('LocalNotifications','getPending');
     if(pend&&pend.notifications&&pend.notifications.length)await nat('LocalNotifications','cancel',{notifications:pend.notifications.map(n=>({id:n.id}))});
-    const R=settings.remind;if(!R.on)return;
+    const R=settings.remind;if(!R.on&&!R.statement)return;
     await nat('LocalNotifications','createChannel',{id:'dues',name:'Payment reminders',description:'Credit card payment due dates',importance:4,visibility:0,vibration:true}).catch(()=>{});
     const list=[],now=Date.now();
     for(const c of V.cards){
-      if(c.type!=='credit'||!c.dueDay)continue;
+      if(c.type!=='credit')continue;
+      const label=`${nameOf(c)}${last4(c)?' ··'+last4(c):''}`;
+      if(R.statement&&c.statementDay)for(let k=0;k<6;k++){
+        const sd=occurrence(c.statementDay,k),at=new Date(sd);at.setHours(+R.hour,0,0,0);
+        if(at.getTime()>now+60000)list.push({id:hashId(c.id+isoDay(sd)+'/stmt'),title:'Statement day',body:`${label} — today's statement is being generated. Check your bill amount.`,channelId:'dues',schedule:{at:at.toISOString(),allowWhileIdle:true},smallIcon:'ic_stat_card',iconColor:'#7C5CFF'});
+      }
+      if(!R.on||!c.dueDay)continue;
       for(let k=0;k<6;k++){
         const due=occurrence(c.dueDay,k);
         if(isPaid(c,due))continue;
@@ -477,7 +539,6 @@ async function scheduleReminders(){
           const at=new Date(due);at.setDate(at.getDate()-before);at.setHours(+R.hour,0,0,0);
           if(at.getTime()>now+60000)list.push({id:hashId(c.id+isoDay(due)+'/'+before),title,body,channelId:'dues',schedule:{at:at.toISOString(),allowWhileIdle:true},smallIcon:'ic_stat_card',iconColor:'#7C5CFF'});
         };
-        const label=`${nameOf(c)}${last4(c)?' ··'+last4(c):''}`;
         if(+R.daysBefore>0)add(+R.daysBefore,`Card payment due in ${R.daysBefore} day${+R.daysBefore>1?'s':''}`,`${label} — due ${fmtDate(due)}. Open Card Vault and tap "Mark paid" once done.`);
         if(R.onDay)add(0,'Card payment due today',`${label} — pay today to avoid late fees.`);
       }
@@ -485,21 +546,22 @@ async function scheduleReminders(){
     if(list.length)await nat('LocalNotifications','schedule',{notifications:list});
   }catch(e){console.warn('reminders',e)}
 }
-async function setReminders(on){
-  if(on){
-    if(!NATIVE){toast('Reminders work in the Android app');return false}
-    try{const p=await nat('LocalNotifications','requestPermissions');if(p.display!=='granted'){toast('Allow notifications for Card Vault in phone Settings → Apps');return false}}
-    catch(e){toast('Could not get notification permission');return false}
-  }
-  settings.remind.on=on;settings.remindAsked=true;saveSettings();
+async function notifPermission(){
+  if(!NATIVE){toast('Reminders work in the Android app');return false}
+  try{const p=await nat('LocalNotifications','requestPermissions');if(p.display!=='granted'){toast('Allow notifications for Card Vault in phone Settings → Apps');return false}return true}
+  catch(e){toast('Could not get notification permission');return false}
+}
+async function setReminders(on,key='on'){
+  if(on&&!(await notifPermission()))return false;
+  settings.remind[key]=on;settings.remindAsked=true;saveSettings();
   await scheduleReminders();
-  if(on){haptic('success');toast('Payment reminders are on')}
+  if(on){haptic('success');toast(key==='statement'?'Statement-day alerts are on':'Payment reminders are on')}
   return true;
 }
 async function togglePaid(id){
   const c=V.cards.find(x=>x.id===id);if(!c||!c.dueDay)return;
   const d=nextDay(c.dueDay);V.meta.paid=V.meta.paid||{};
-  if(isPaid(c,d)){delete V.meta.paid[c.id];haptic('light')}else{V.meta.paid[c.id]=isoDay(d);haptic('success');toast(`${nameOf(c)} marked as paid`)}
+  if(isPaid(c,d)){delete V.meta.paid[c.id];haptic('tap')}else{V.meta.paid[c.id]=isoDay(d);haptic('success');toast(`${nameOf(c)} marked as paid`)}
   await persist();renderSummary();scheduleReminders();
 }
 
@@ -573,7 +635,7 @@ function renderLock(restoreBlob,autoBio=true){
         fails=0;onUnlocked(r);
         if(mode==='restore'){await persist();toast(`Restored ${V.cards.length} card(s)`)}
       }
-      haptic('light');
+      haptic('tap');
       offerBio(pw);
     }catch(x){
       haptic('error');err.textContent=x.message||'Something went wrong.';
@@ -607,16 +669,18 @@ function renderMain(animate){
     <div id="top"></div>
     <div class="tools">
       <input id="search" type="search" placeholder="Search bank, name, last 4 digits…" value="${esc(view.q)}" autocomplete="off" enterkeyhint="search">
-      <div class="chips">${['all','credit','debit'].map(f=>`<button class="chip-f ${view.filter===f?'on':''}" data-f="${f}">${f[0].toUpperCase()+f.slice(1)}</button>`).join('')}</div>
+      <div class="tools-row"><div class="chips">${['all','credit','debit'].map(f=>`<button class="chip-f ${view.filter===f?'on':''}" data-f="${f}">${f[0].toUpperCase()+f.slice(1)}</button>`).join('')}</div>
+        <button class="icon-btn" id="arrBtn" aria-label="Arrange cards">${ICON.sort}</button></div>
     </div>
     <div class="list" id="list"></div>
     <button class="fab" id="addBtn" aria-label="Add card">${ICON.plus}</button>`;
-  $('#lockBtn').onclick=()=>{haptic('light');lock(false)};
+  $('#lockBtn').onclick=()=>{haptic('tap');lock(false)};
   $('#setBtn').onclick=()=>pushSheet(settingsView());
   $('#addBtn').onclick=()=>pushSheet(editView());
+  $('#arrBtn').onclick=()=>{if(V.cards.length<2){toast('Add at least two cards to arrange');return}pushSheet(arrangeView())};
   $('#search').oninput=e=>{view.q=e.target.value;renderList(false)};
   $('#search').onkeydown=e=>{if(e.key==='Enter')e.target.blur()};
-  app.querySelectorAll('.chip-f').forEach(b=>b.onclick=()=>{view.filter=b.dataset.f;haptic('light');app.querySelectorAll('.chip-f').forEach(x=>x.classList.toggle('on',x===b));renderList(true)});
+  app.querySelectorAll('.chip-f').forEach(b=>b.onclick=()=>{view.filter=b.dataset.f;haptic('tap');app.querySelectorAll('.chip-f').forEach(x=>x.classList.toggle('on',x===b));renderList(true)});
   $('#list').onclick=onListClick;
   $('#top').onclick=onTopClick;
   renderSummary();renderList(true);
@@ -633,8 +697,13 @@ function renderSummary(){
       <div class="stat"><div class="k">Credit cards</div><div class="v">${credit.length}</div></div>
       <div class="stat"><div class="k">Total credit limit</div><div class="v">${limit?inr(limit):'—'}</div>${hasShared?'<div class="k" style="margin-top:2px">shared limits counted once</div>':''}</div>
     </div>`;
+  if(credit.length){
+    const best=runwayRank(today())[0];
+    html+=best?`<button class="runway" data-act="runway"><div><div class="k">${ICON.plane} RUNWAY · TODAY</div><div class="v">${best.days} days</div></div><div class="r"><div>${esc(nameOf(best.c))}${last4(best.c)?' <span class="muted">··'+esc(last4(best.c))+'</span>':''}</div><div class="muted small">pay by ${fmtDate(best.due)}</div></div></button>`
+      :`<button class="runway" data-act="runway"><div><div class="k">${ICON.plane} RUNWAY</div><div class="small" style="margin-top:2px">Add statement & due dates to your credit cards to see which card gives the most time to pay</div></div></button>`;
+  }
   if(dues.length){
-    html+=`<div class="box"><h3><span>Upcoming payments</span>${NATIVE&&!settings.remind.on?'<button data-act="remind">🔔 Turn on reminders</button>':''}</h3>${dues.slice(0,6).map(({c,d})=>{
+    html+=`<div class="box"><h3><span>Upcoming payments</span>${NATIVE&&!settings.remind.on&&!settings.remind.statement?'<button data-act="remind">🔔 Turn on reminders</button>':''}</h3>${dues.slice(0,6).map(({c,d})=>{
       const n=daysUntil(d),paid=isPaid(c,d);
       return `<div class="due"><div style="min-width:0"><div>${esc(nameOf(c))} <span class="muted">${last4(c)?'··'+esc(last4(c)):''}</span></div>
         <div class="when ${!paid&&n<=3?'hot':''}">${paid?`Paid · next due ${fmtDate(occurrence(c.dueDay,1))}`:`Due ${fmtDate(d)} · ${rel(n)}`}</div></div>
@@ -649,6 +718,7 @@ async function onTopClick(e){
   const p=e.target.closest('[data-paid]');if(p)return togglePaid(p.dataset.paid);
   const a=e.target.closest('[data-act]');if(!a)return;
   if(a.dataset.act==='backup')exportBackup();
+  if(a.dataset.act==='runway')pushSheet(runwayView());
   if(a.dataset.act==='remind'){if(await setReminders(true))renderSummary()}
 }
 function tileHTML(c){
@@ -665,7 +735,11 @@ function filtered(){
   const q=view.q.trim().toLowerCase();
   let cards=V.cards.filter(c=>view.filter==='all'||c.type===view.filter);
   if(q)cards=cards.filter(c=>[c.nickname,c.bank,c.holder,NETWORKS[netOf(c)],c.notes,c.rewards,last4(c)].join(' ').toLowerCase().includes(q));
-  return cards.sort((a,b)=>(a.bank||'').localeCompare(b.bank||'')||(a.nickname||'').localeCompare(b.nickname||''));
+  return cards.sort(cardSort);
+}
+function cardSort(a,b){
+  if(V.meta.customOrder){const x=a.order??1e9,y=b.order??1e9;if(x!==y)return x-y}
+  return (a.bank||'').localeCompare(b.bank||'')||(a.nickname||'').localeCompare(b.nickname||'');
 }
 function renderList(animate){
   const el=$('#list');if(!el)return;
@@ -682,7 +756,7 @@ function toggleReveal(id){
   clearTimeout(revealTimers[id]);
   if(revealed.has(id))revealed.delete(id);
   else{revealed.add(id);revealTimers[id]=setTimeout(()=>{revealed.delete(id);rerenderTile(id)},30000)}
-  haptic('light');rerenderTile(id);
+  haptic('tap');rerenderTile(id);
 }
 function onListClick(e){
   const eye=e.target.closest('[data-eye]');if(eye)return toggleReveal(eye.dataset.eye);
@@ -755,7 +829,7 @@ function detailView(id){
 }
 async function copy(text,secret){
   const write=v=>NATIVE?nat('Clipboard','write',{string:v}):navigator.clipboard.writeText(v);
-  try{await write(String(text));haptic('light');toast(secret?'Copied · clipboard clears in 45s':'Copied')}
+  try{await write(String(text));haptic('tap');toast(secret?'Copied · clipboard clears in 45s':'Copied')}
   catch(e){toast('Copy failed')}
   if(secret)setTimeout(()=>{write(' ').catch(()=>{})},45000);
 }
@@ -862,6 +936,7 @@ function editView(id){
         const o=V.cards.find(x=>x.id===shareWith);
         if(o){const grp=o.limitGroup||('g'+uid());o.limitGroup=grp;card.limitGroup=grp;if(!card.limit)card.limit=o.limit}
       }
+      if(!id&&V.meta.customOrder)card.order=Math.max(-1,...V.cards.map(x=>x.order??-1))+1;
       if(id)V.cards=V.cards.map(x=>x.id===id?card:x);else V.cards.push(card);
       if(card.limitGroup)V.cards.forEach(x=>{if(x.limitGroup===card.limitGroup)x.limit=card.limit});
       cleanupGroups();
@@ -869,6 +944,81 @@ function editView(id){
       if(isNew)replaceSheet(detailView(card.id));else popSheet();
       toast(isNew?'Card added':'Saved');
     };
+  }};
+}
+
+/* ============ Runway ============ */
+function runwayView(){
+  let P=today();
+  const listHTML=()=>{
+    const ranked=runwayRank(P);
+    const missing=V.cards.filter(c=>c.type==='credit'&&(!c.statementDay||!c.dueDay));
+    if(!ranked.length&&!missing.length)return '<p class="muted">Add a credit card first.</p>';
+    return `<div class="fields">${ranked.map((r,i)=>`<div class="rw-row ${i===0?'best':''}">
+        <div class="rw-rank">${i+1}</div>
+        <div class="rw-mid"><div class="n">${esc(nameOf(r.c))} <span class="muted">${last4(r.c)?'··'+esc(last4(r.c)):''}</span></div>
+          <div class="s ${r.edge?'rw-warn':''}">${r.edge?'⚠ Statement day — may land on this bill':`Bill ${fmtDate(r.stmt)}`} → pay by ${fmtDate(r.due)}</div></div>
+        <div class="rw-days"><b>${r.days}</b><span>days</span></div></div>`).join('')}
+      ${missing.map(c=>`<div class="rw-row"><div class="rw-rank">–</div><div class="rw-mid"><div class="n">${esc(nameOf(c))} <span class="muted">${last4(c)?'··'+esc(last4(c)):''}</span></div><div class="s">Add statement & due dates to rank</div></div></div>`).join('')}</div>`;
+  };
+  return {html:()=>`
+    <div class="sheet-h"><h2>${ICON.plane.replace('width="14" height="14"','width="20" height="20"')} Runway</h2><button class="icon-btn" id="closeBtn" aria-label="Close">${ICON.x}</button></div>
+    <p class="muted" style="margin:0">Pick the day you'll spend. Cards are ranked by how long you get before payment is due.</p>
+    <label>Spending on</label>
+    <input type="date" id="rwDate" value="${isoDay(P)}">
+    <div class="rw-quick">${[['Today',0],['Tomorrow',1],['+7 days',7],['+15 days',15]].map(([t,n])=>`<button class="chip-f" data-plus="${n}">${t}</button>`).join('')}</div>
+    <div id="rwList">${listHTML()}</div>
+    <p class="muted small" style="margin-top:12px">Based on the statement and due dates saved on each card. Purchases on a statement day can go on either bill depending on the bank, so they're counted on the earlier one.</p>`,
+  bind:()=>{
+    $('#closeBtn').onclick=popSheet;
+    const di=$('#rwDate');
+    const update=()=>{$('#rwList').innerHTML=listHTML();haptic('tick')};
+    di.onchange=()=>{const v=di.value.split('-').map(Number);P=v.length===3&&v[0]?new Date(v[0],v[1]-1,v[2]):today();update()};
+    sheetEl.querySelectorAll('[data-plus]').forEach(b=>b.onclick=()=>{P=today();P.setDate(P.getDate()+(+b.dataset.plus));di.value=isoDay(P);update()});
+  }};
+}
+
+/* ============ Arrange cards ============ */
+function arrangeView(){
+  const rowHTML=c=>`<div class="arow" data-id="${esc(c.id)}"><div class="sw c-${esc(c.color||'midnight')}"></div>
+    <div class="grow"><div>${esc(nameOf(c))}</div><div class="muted small">${esc(c.bank||'')}${last4(c)?' ··'+esc(last4(c)):''}</div></div>
+    <button class="mv" data-mv="up" aria-label="Move up">▲</button><button class="mv" data-mv="down" aria-label="Move down">▼</button>
+    <div class="handle" aria-label="Drag to reorder">${ICON.grip}</div></div>`;
+  const save=async()=>{
+    [...$('#arrList').children].forEach((r,i)=>{const c=V.cards.find(x=>x.id===r.dataset.id);if(c)c.order=i});
+    V.meta.customOrder=true;await persist();renderList(false);
+  };
+  return {html:()=>`
+    <div class="sheet-h"><h2>Arrange cards</h2><button class="icon-btn" id="closeBtn" aria-label="Close">${ICON.x}</button></div>
+    <p class="muted" style="margin:0 0 4px">Drag ⠿ or use the arrows. Your order is saved automatically.</p>
+    <div class="fields" id="arrList">${[...V.cards].sort(cardSort).map(rowHTML).join('')}</div>
+    <div class="btns"><button class="btn" id="arrReset">Reset to A–Z</button><button class="btn primary" id="arrDone">Done</button></div>`,
+  bind:()=>{
+    const list=$('#arrList');
+    $('#closeBtn').onclick=popSheet;$('#arrDone').onclick=popSheet;
+    $('#arrReset').onclick=async()=>{V.meta.customOrder=false;V.cards.forEach(c=>delete c.order);await persist();renderList(false);haptic('tap');toast('Sorted A–Z');refreshSheet()};
+    list.onclick=e=>{
+      const b=e.target.closest('[data-mv]');if(!b)return;
+      const row=b.closest('.arow');
+      if(b.dataset.mv==='up'&&row.previousElementSibling)list.insertBefore(row,row.previousElementSibling);
+      else if(b.dataset.mv==='down'&&row.nextElementSibling)list.insertBefore(row.nextElementSibling,row);
+      else return;
+      haptic('tick');save();
+    };
+    list.addEventListener('pointerdown',e=>{
+      const h=e.target.closest('.handle');if(!h)return;
+      e.preventDefault();
+      const row=h.closest('.arow');row.classList.add('dragging');haptic('tap');
+      const pid=e.pointerId;
+      const move=ev=>{
+        if(ev.pointerId!==pid)return;ev.preventDefault();
+        let before=null;
+        for(const r of list.children){if(r===row)continue;const rc=r.getBoundingClientRect();if(ev.clientY<rc.top+rc.height/2){before=r;break}}
+        if(before!==row.nextElementSibling&&before!==row){list.insertBefore(row,before);haptic('tick')}
+      };
+      const up=ev=>{if(ev.pointerId!==pid)return;row.classList.remove('dragging');removeEventListener('pointermove',move);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);save()};
+      addEventListener('pointermove',move,{passive:false});addEventListener('pointerup',up);addEventListener('pointercancel',up);
+    });
   }};
 }
 
@@ -884,8 +1034,15 @@ function settingsView(){
       ${R.on?`
       <div class="set-item"><div>Remind me</div><select id="remDays">${[[0,'Only on due date'],[1,'1 day before'],[2,'2 days before'],[3,'3 days before'],[5,'5 days before'],[7,'7 days before']].map(([v,t])=>`<option value="${v}" ${+R.daysBefore===v?'selected':''}>${t}</option>`).join('')}</select></div>
       <div class="set-item"><div>Also on the due date</div><button class="switch ${R.onDay||+R.daysBefore===0?'on':''}" id="remDay" ${+R.daysBefore===0?'disabled':''}></button></div>
-      <div class="set-item"><div>Time</div><select id="remHour">${[7,8,9,10,12,15,18,20,21].map(h=>`<option value="${h}" ${+R.hour===h?'selected':''}>${(h%12||12)}:00 ${h<12?'AM':'PM'}</option>`).join('')}</select></div>
+      `:''}
+      <div class="set-item"><div><div>Statement-day alert</div><div class="muted small">${NATIVE?'Notification on the day each card\'s statement is generated':'Available in the Android app'}</div></div><button class="switch ${R.statement?'on':''}" id="stmtSw" aria-label="Statement alerts" ${NATIVE?'':'disabled'}></button></div>
+      ${R.on||R.statement?`
+      <div class="set-item"><div>Notification time</div><select id="remHour">${[7,8,9,10,12,15,18,20,21].map(h=>`<option value="${h}" ${+R.hour===h?'selected':''}>${(h%12||12)}:00 ${h<12?'AM':'PM'}</option>`).join('')}</select></div>
       <div class="set-item"><div><div>Test notification</div><div class="muted small">Arrives in about 10 seconds</div></div><button class="btn" id="remTest">Send</button></div>`:''}
+    </div>
+    <div class="section-t">Feel</div>
+    <div class="fields">
+      <div class="set-item"><div><div>Vibration</div><div class="muted small">Feedback on taps, copy and unlock</div></div><select id="hapLvl">${[['off','Off'],['subtle','Subtle'],['light','Light'],['medium','Medium']].map(([v,t])=>`<option value="${v}" ${settings.haptics===v?'selected':''}>${t}</option>`).join('')}</select></div>
     </div>
     <div class="section-t">Security</div>
     <div class="fields">
@@ -907,6 +1064,8 @@ function settingsView(){
   bind:()=>{
     $('#closeBtn').onclick=()=>closeAllSheets();
     $('#remSw').onclick=async()=>{await setReminders(!settings.remind.on);refreshSheet();renderSummary()};
+    $('#stmtSw').onclick=async()=>{await setReminders(!settings.remind.statement,'statement');refreshSheet();renderSummary()};
+    $('#hapLvl').onchange=e=>{settings.haptics=e.target.value;saveSettings();haptic('success');toast(e.target.value==='off'?'Vibration off':'Vibration: '+e.target.selectedOptions[0].text)};
     const rd=$('#remDays');if(rd)rd.onchange=e=>{settings.remind.daysBefore=+e.target.value;saveSettings();scheduleReminders();refreshSheet()};
     const rdy=$('#remDay');if(rdy)rdy.onclick=()=>{settings.remind.onDay=!settings.remind.onDay;saveSettings();scheduleReminders();refreshSheet()};
     const rh=$('#remHour');if(rh)rh.onchange=e=>{settings.remind.hour=+e.target.value;saveSettings();scheduleReminders();toast('Saved')};
