@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cards">
+<meta name="referrer" content="no-referrer">
+<!-- No network access at all: connect-src 'none' means this page cannot send your data anywhere. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; manifest-src 'self'; worker-src 'self'; form-action 'none'; base-uri 'none'">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Card Vault</title>
+<style>
+:root{--bg:#0e1116;--panel:#161a22;--panel2:#1d222c;--line:#2a303c;--text:#e8ebf1;--muted:#8b93a3;--accent:#7c5cff;--accent2:#22c3a6;--danger:#ff5d6c;--warn:#ffb648}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body.blur #app,body.blur #overlay{filter:blur(22px)}
+#app{max-width:560px;margin:0 auto;min-height:100dvh;padding:calc(env(safe-area-inset-top) + 12px) 16px calc(100px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit}
+input,select,textarea{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:80px;resize:vertical}
+label{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+.muted{color:var(--muted)}
+.btn{border:0;border-radius:12px;padding:13px 16px;background:var(--panel2);cursor:pointer;font-weight:600;width:100%}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#5b8cff);color:#fff}
+.btn.danger{background:rgba(255,93,108,.12);color:var(--danger)}
+.btn:disabled{opacity:.6}
+.link{background:none;border:0;color:var(--accent);cursor:pointer;padding:10px;font-weight:600}
+.icon-btn{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:42px;height:42px;display:grid;place-items:center;cursor:pointer}
+.icon-btn svg{width:20px;height:20px}
+.err{color:var(--danger);min-height:20px;margin:8px 0 0;font-size:14px}
+.warn{color:var(--warn);font-size:13px;margin-top:6px}
+
+/* Lock */
+.lock{min-height:85dvh;display:flex;flex-direction:column;justify-content:center;text-align:center;gap:6px}
+.lock .logo{width:76px;height:76px;margin:0 auto 10px}
+.lock h1{margin:0;font-size:26px}
+.lock form{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;margin:4px 0 16px}
+header h1{margin:0;font-size:24px}
+header .sub{font-size:13px;color:var(--muted)}
+header .actions{display:flex;gap:8px}
+
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-size:18px;font-weight:700;margin-top:2px}
+.dues{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.dues h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.due{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
+.due:first-of-type{border-top:0}
+.pill{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--panel2);color:var(--muted);white-space:nowrap}
+.pill.hot{background:rgba(255,182,72,.15);color:var(--warn)}
+.pill.bad{background:rgba(255,93,108,.15);color:var(--danger)}
+
+.tools{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tools input{flex:1 1 100%}
+.chips{display:flex;gap:8px}
+.chip-f{border:1px solid var(--line);background:var(--panel);border-radius:99px;padding:7px 14px;cursor:pointer;font-size:14px}
+.chip-f.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+.list{display:flex;flex-direction:column;gap:14px}
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+
+/* Card visual */
+.tile{all:unset;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;width:100%;aspect-ratio:1.586;border-radius:18px;padding:18px 20px;color:#fff;position:relative;overflow:hidden;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.4)}
+.tile::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 100% 0%,rgba(255,255,255,.2),transparent 55%);pointer-events:none}
+.tile .row{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative;z-index:1}
+.tile .bank{font-weight:700;font-size:17px;letter-spacing:.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .type{font-size:11px;text-transform:uppercase;letter-spacing:.12em;opacity:.85;border:1px solid rgba(255,255,255,.4);padding:2px 8px;border-radius:99px}
+.tile .emv{width:42px;height:32px;border-radius:7px;background:linear-gradient(135deg,#f5d77a,#c9a443);position:relative;z-index:1}
+.tile .num{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:clamp(16px,5.4vw,22px);letter-spacing:.08em;position:relative;z-index:1;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.tile .nick{font-size:13px;opacity:.9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .net{font-weight:800;font-style:italic;font-size:16px;letter-spacing:.02em}
+.tile .badge{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:2}
+.c-midnight{background:linear-gradient(135deg,#24345e,#0b1020)}
+.c-ocean{background:linear-gradient(135deg,#0f4c81,#1aa0c8)}
+.c-emerald{background:linear-gradient(135deg,#0b6b4f,#1fbf8a)}
+.c-crimson{background:linear-gradient(135deg,#7a0f1f,#d6304a)}
+.c-gold{background:linear-gradient(135deg,#6e500e,#d9a93a)}
+.c-violet{background:linear-gradient(135deg,#3b1e7a,#8a5cff)}
+.c-rose{background:linear-gradient(135deg,#7a1e4f,#e0609a)}
+.c-metal{background:linear-gradient(135deg,#111,#4a4a4a)}
+.c-slate{background:linear-gradient(135deg,#2f3a4a,#61708a)}
+.c-sunset{background:linear-gradient(135deg,#a63b14,#f39c3d)}
+
+.fab{position:fixed;right:max(20px,calc(50% - 260px));bottom:calc(22px + env(safe-area-inset-bottom));width:60px;height:60px;border-radius:20px;border:0;background:linear-gradient(135deg,var(--accent),#5b8cff);color:#fff;box-shadow:0 10px 30px rgba(124,92,255,.45);cursor:pointer;display:grid;place-items:center}
+.fab svg{width:28px;height:28px}
+
+/* Sheet */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:20}
+#overlay.open{display:block}
+#sheet{position:absolute;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;max-height:94dvh;overflow-y:auto;background:var(--panel);border-radius:22px 22px 0 0;padding:10px 18px calc(24px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.grab{width:42px;height:5px;border-radius:9px;background:var(--line);margin:4px auto 12px}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet-h h2{margin:0;font-size:20px}
+.fields{background:var(--panel2);border-radius:14px;margin-top:14px;overflow:hidden}
+.field{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}
+.field:first-child{border-top:0}
+.field .l{font-size:12px;color:var(--muted)}
+.field .v{word-break:break-word}
+.field .v.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.04em}
+.field .grow{flex:1;min-width:0}
+.copy{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:13px;cursor:pointer;color:var(--text)}
+.section-t{margin:18px 0 0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row2 label{margin-top:12px}
+.colors{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.colors input{display:none}
+.colors label{margin:0;width:38px;height:38px;border-radius:12px;cursor:pointer;border:2px solid transparent}
+.colors input:checked+label{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+.btns{display:flex;gap:10px;margin-top:20px}
+.set-item{display:flex;justify-content:space-between;align-items:center;padding:14px;border-top:1px solid var(--line);gap:12px}
+.set-item:first-child{border-top:0}
+.set-item select{width:auto}
+.set-item .btn{width:auto;padding:9px 14px}
+
+#toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#fff;color:#111;padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;transition:.2s;z-index:50;pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="overlay"><div id="sheet"></div></div>
+<div id="toast"></div>
+<input type="file" id="filePick" accept="application/json,.json" hidden>
+
+<script>
+'use strict';
+/* ============ Utilities ============ */
+const $ = s => document.querySelector(s);
+const app = $('#app'), overlay = $('#overlay'), sheetEl = $('#sheet');
+const enc = new TextEncoder(), dec = new TextDecoder();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function b64(buf){const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const uid = () => b64(crypto.getRandomValues(new Uint8Array(9))).replace(/[+/=]/g,'x');
+const inr = n => '₹' + Number(n||0).toLocaleString('en-IN');
+const STORE = 'cardvault.v1', SETTINGS = 'cardvault.settings';
+const ITER = 310000;
+const ICON = {
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>',
+  logo:'<svg viewBox="0 0 512 512"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22c3a6"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#161a22"/><rect x="96" y="150" width="320" height="212" rx="28" fill="url(#lg)"/><rect x="96" y="196" width="320" height="40" fill="#0e1116" opacity=".55"/><rect x="128" y="276" width="70" height="50" rx="10" fill="#f5d77a"/><rect x="232" y="296" width="150" height="14" rx="7" fill="#fff" opacity=".8"/></svg>'
+};
+const COLORS = ['midnight','ocean','emerald','violet','crimson','rose','gold','sunset','slate','metal'];
+const NETWORKS = {visa:'VISA',mastercard:'Mastercard',rupay:'RuPay',amex:'AMEX',diners:'Diners',discover:'Discover',maestro:'Maestro',jcb:'JCB',other:''};
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
+
+/* ============ Card helpers ============ */
+function detectNetwork(n){
+  n=(n||'').replace(/\D/g,'');
+  if(!n) return '';
+  if(/^3[47]/.test(n)) return 'amex';
+  if(/^(508|60|65|81|82|353|356)/.test(n)) return 'rupay';
+  if(/^4/.test(n)) return 'visa';
+  if(/^(5[1-5]|222[1-9]|22[3-9]|2[3-6]|27[01]|2720)/.test(n)) return 'mastercard';
+  if(/^3(0[0-5]|[689])/.test(n)) return 'diners';
+  if(/^35/.test(n)) return 'jcb';
+  if(/^(50|5[6-9]|6)/.test(n)) return 'maestro';
+  return 'other';
+}
+function luhn(n){n=(n||'').replace(/\D/g,'');if(n.length<12)return false;let s=0,d=false;for(let i=n.length-1;i>=0;i--){let x=+n[i];if(d){x*=2;if(x>9)x-=9}s+=x;d=!d}return s%10===0}
+function fmtNum(n,net){
+  n=(n||'').replace(/\D/g,'');
+  if(net==='amex') return [n.slice(0,4),n.slice(4,10),n.slice(10,15)].filter(Boolean).join(' ');
+  return n.replace(/(.{4})/g,'$1 ').trim();
+}
+function maskNum(n,net){
+  n=(n||'').replace(/\D/g,'');
+  if(!n) return '•••• •••• •••• ••••';
+  const last=n.slice(-4);
+  return net==='amex' ? '•••• •••••• ••'+n.slice(-3) : '•••• •••• •••• '+last;
+}
+const daysIn=(y,m)=>new Date(y,m+1,0).getDate();
+function nextDay(day){
+  day=+day; if(!day) return null;
+  const t=new Date(); t.setHours(0,0,0,0);
+  let d=new Date(t.getFullYear(),t.getMonth(),Math.min(day,daysIn(t.getFullYear(),t.getMonth())));
+  if(d<t){const y=t.getFullYear(),m=t.getMonth()+1;d=new Date(y,m,Math.min(day,daysIn(y,m)))}
+  return d;
+}
+const daysUntil=d=>{const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/864e5)};
+const fmtDate=d=>d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+function expiryStatus(c){
+  if(!c.expMonth||!c.expYear) return null;
+  const end=new Date(+c.expYear,+c.expMonth,0); // last day of expiry month
+  const days=daysUntil(end);
+  if(days<0) return {cls:'bad',txt:'Expired'};
+  if(days<=60) return {cls:'hot',txt:'Expires soon'};
+  return null;
+}
+function ordinal(n){n=+n;const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
+
+/* ============ Crypto & storage ============ */
+async function deriveKey(pass,salt,iter){
+  const base=await crypto.subtle.importKey('raw',enc.encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptWith(key,salt,iter,data){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(data)));
+  return {app:'cardvault',v:1,kdf:'PBKDF2-SHA256',iter,salt:b64(salt),iv:b64(iv),ct:b64(ct)};
+}
+async function decryptBlob(blob,pass){
+  const salt=unb64(blob.salt), key=await deriveKey(pass,salt,blob.iter);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(blob.iv)},key,unb64(blob.ct));
+  return {key,salt,iter:blob.iter,data:JSON.parse(dec.decode(pt))};
+}
+
+let K=null,SALT=null,KITER=ITER,V=null;
+let settings={autolock:3};
+try{Object.assign(settings,JSON.parse(localStorage.getItem(SETTINGS)||'{}'))}catch(e){}
+const saveSettings=()=>localStorage.setItem(SETTINGS,JSON.stringify(settings));
+
+async function persist(){
+  const blob=await encryptWith(K,SALT,KITER,V);
+  localStorage.setItem(STORE,JSON.stringify(blob));
+}
+async function createVault(pass,data){
+  SALT=crypto.getRandomValues(new Uint8Array(16)); KITER=ITER;
+  K=await deriveKey(pass,SALT,KITER);
+  V=data||{cards:[],meta:{created:Date.now()}};
+  V.meta=V.meta||{};
+  await persist();
+}
+if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+/* ============ Auto-lock ============ */
+let lockTimer=null, hiddenAt=0, picking=false, fails=0, waitUntil=0;
+function bump(){if(!K)return;clearTimeout(lockTimer);lockTimer=setTimeout(lock,settings.autolock*60000)}
+['pointerdown','keydown','scroll','touchstart'].forEach(e=>addEventListener(e,bump,{passive:true}));
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){hiddenAt=Date.now();document.body.classList.add('blur')}
+  else{document.body.classList.remove('blur');if(K&&!picking&&Date.now()-hiddenAt>30000)lock()}
+});
+function lock(){
+  K=null;V=null;SALT=null;clearTimeout(lockTimer);
+  if(sheetOpen)closeSheet();
+  renderLock();
+}
+
+/* ============ Sheet (bottom panel) ============ */
+let sheetOpen=false;
+function openSheet(html){
+  sheetEl.innerHTML='<div class="grab"></div>'+html;
+  sheetEl.scrollTop=0;
+  overlay.classList.add('open');
+  if(!sheetOpen){history.pushState({sheet:1},'');sheetOpen=true}
+}
+function closeSheet(fromPop){
+  if(!sheetOpen)return;
+  sheetOpen=false;overlay.classList.remove('open');sheetEl.innerHTML='';
+  if(!fromPop)history.back();
+}
+addEventListener('popstate',()=>{if(sheetOpen)closeSheet(true)});
+overlay.addEventListener('click',e=>{if(e.target===overlay)closeSheet()});
+
+/* ============ File picking ============ */
+function pickFile(){
+  return new Promise(res=>{
+    const fp=$('#filePick');fp.value='';picking=true;
+    fp.onchange=async()=>{picking=false;const f=fp.files[0];if(!f)return res(null);try{res(JSON.parse(await f.text()))}catch(e){toast('That file is not valid JSON');res(null)}};
+    addEventListener('focus',()=>setTimeout(()=>{picking=false},1500),{once:true});
+    fp.click();
+  });
+}
+async function downloadJSON(obj,name){
+  const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});
+  const file=new File([blob],name,{type:'application/json'});
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent);
+  if(ios&&navigator.canShare&&navigator.canShare({files:[file]})){
+    picking=true;try{await navigator.share({files:[file],title:name})}catch(e){}picking=false;return;
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+}
+
+/* ============ Lock screen ============ */
+function renderLock(restoreBlob){
+  const exists=!!localStorage.getItem(STORE);
+  const mode=restoreBlob?'restore':exists?'unlock':'create';
+  const text={
+    unlock:'Enter your master password',
+    create:'Create a master password. It encrypts everything stored on this phone. If you forget it, the data cannot be recovered — so keep a backup.',
+    restore:'Enter the master password that was used when this backup was made.'
+  }[mode];
+  app.innerHTML=`<div class="lock">
+    <div class="logo">${ICON.logo}</div>
+    <h1>Card Vault</h1>
+    <p class="muted">${text}</p>
+    <form id="lockForm" autocomplete="off">
+      <input type="password" id="pw" placeholder="Master password" autocomplete="${mode==='create'?'new-password':'current-password'}" required>
+      ${mode==='create'?'<input type="password" id="pw2" placeholder="Confirm master password" autocomplete="new-password" required>':''}
+      <button class="btn primary" id="go" type="submit">${{unlock:'Unlock',create:'Create vault',restore:'Restore backup'}[mode]}</button>
+      <p class="err" id="err"></p>
+    </form>
+    ${mode==='create'?'<button class="link" id="restoreBtn">Restore from a backup file</button>':''}
+    ${mode==='restore'?'<button class="link" id="cancelRestore">Cancel</button>':''}
+  </div>`;
+  const err=$('#err'),go=$('#go');
+  setTimeout(()=>$('#pw').focus(),50);
+  $('#lockForm').onsubmit=async e=>{
+    e.preventDefault();err.textContent='';
+    const pw=$('#pw').value;
+    if(Date.now()<waitUntil){err.textContent=`Too many attempts. Wait ${Math.ceil((waitUntil-Date.now())/1000)}s.`;return}
+    go.disabled=true;go.textContent='Working…';
+    try{
+      if(mode==='create'){
+        if(pw.length<6)throw new Error('Use at least 6 characters.');
+        if(pw!==$('#pw2').value)throw new Error('Passwords do not match.');
+        await createVault(pw);
+      }else{
+        const blob=restoreBlob||JSON.parse(localStorage.getItem(STORE));
+        let r;try{r=await decryptBlob(blob,pw)}catch(x){
+          fails++;if(fails>=5){waitUntil=Date.now()+30000;fails=0}
+          throw new Error('Wrong password.');
+        }
+        fails=0;K=r.key;SALT=r.salt;KITER=r.iter;V=r.data;V.cards=V.cards||[];V.meta=V.meta||{};
+        if(mode==='restore')await persist();
+      }
+      bump();renderMain();
+      if(mode==='restore')toast(`Restored ${V.cards.length} card(s)`);
+    }catch(x){err.textContent=x.message||'Something went wrong.';go.disabled=false;go.textContent={unlock:'Unlock',create:'Create vault',restore:'Restore backup'}[mode]}
+  };
+  const rb=$('#restoreBtn');
+  if(rb)rb.onclick=async()=>{const blob=await pickFile();if(!blob)return;if(blob.app!=='cardvault'){toast('Not a Card Vault backup');return}renderLock(blob)};
+  const cr=$('#cancelRestore');if(cr)cr.onclick=()=>renderLock();
+}
+
+/* ============ Main screen ============ */
+const view={q:'',filter:'all',reveal:false};
+function renderMain(){
+  app.innerHTML=`
+    <header>
+      <div><h1>My Cards</h1><div class="sub" id="count"></div></div>
+      <div class="actions">
+        <button class="icon-btn" id="setBtn" aria-label="Settings">${ICON.gear}</button>
+        <button class="icon-btn" id="lockBtn" aria-label="Lock">${ICON.lock}</button>
+      </div>
+    </header>
+    <div id="top"></div>
+    <div class="tools">
+      <input id="search" type="search" placeholder="Search bank, name, last 4 digits…" value="${esc(view.q)}" autocomplete="off">
+      <div class="chips">
+        ${['all','credit','debit'].map(f=>`<button class="chip-f ${view.filter===f?'on':''}" data-f="${f}">${f[0].toUpperCase()+f.slice(1)}</button>`).join('')}
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+    <button class="fab" id="addBtn" aria-label="Add card">${ICON.plus}</button>`;
+  $('#lockBtn').onclick=lock;
+  $('#setBtn').onclick=openSettings;
+  $('#addBtn').onclick=()=>openEdit();
+  $('#search').oninput=e=>{view.q=e.target.value;renderList()};
+  app.querySelectorAll('.chip-f').forEach(b=>b.onclick=()=>{view.filter=b.dataset.f;app.querySelectorAll('.chip-f').forEach(x=>x.classList.toggle('on',x===b));renderList()});
+  $('#list').onclick=e=>{const t=e.target.closest('.tile');if(t)openDetail(t.dataset.id)};
+  renderTop();renderList();
+}
+function renderTop(){
+  const cards=V.cards, credit=cards.filter(c=>c.type==='credit');
+  const limit=credit.reduce((s,c)=>s+(+c.limit||0),0);
+  $('#count').textContent=`${cards.length} card${cards.length===1?'':'s'} · encrypted on this device`;
+  const dues=credit.filter(c=>c.dueDay).map(c=>({c,d:nextDay(c.dueDay)})).sort((a,b)=>a.d-b.d).slice(0,4);
+  const expiring=cards.filter(c=>expiryStatus(c));
+  let html='';
+  if(cards.length){
+    html+=`<div class="summary">
+      <div class="stat"><div class="k">Credit cards</div><div class="v">${credit.length}</div></div>
+      <div class="stat"><div class="k">Total credit limit</div><div class="v">${limit?inr(limit):'—'}</div></div>
+    </div>`;
+  }
+  if(dues.length){
+    html+=`<div class="dues"><h3>Upcoming payment due dates</h3>${dues.map(({c,d})=>{const n=daysUntil(d);return `<div class="due"><span>${esc(c.nickname||c.bank||'Card')} <span class="muted">··${esc((c.number||'').slice(-4))}</span></span><span class="pill ${n<=3?'hot':''}">${fmtDate(d)} · ${n===0?'today':n===1?'tomorrow':n+' days'}</span></div>`}).join('')}</div>`;
+  }
+  if(expiring.length){
+    html+=`<div class="dues"><h3>Needs attention</h3>${expiring.map(c=>{const s=expiryStatus(c);return `<div class="due"><span>${esc(c.nickname||c.bank||'Card')}</span><span class="pill ${s.cls}">${s.txt} · ${esc(c.expMonth)}/${esc(String(c.expYear).slice(-2))}</span></div>`}).join('')}</div>`;
+  }
+  const lb=V.meta.lastBackup;
+  if(cards.length&&(!lb||Date.now()-lb>30*864e5)){
+    html+=`<div class="dues" style="border-color:rgba(255,182,72,.35)"><h3 style="color:var(--warn)">Backup reminder</h3><div style="font-size:14px">${lb?'Your last backup was over a month ago.':'You haven\'t made a backup yet.'} If the browser data is cleared, cards are gone without one. <button class="link" id="quickBackup" style="padding:4px 0">Back up now</button></div></div>`;
+  }
+  $('#top').innerHTML=html;
+  const qb=$('#quickBackup');if(qb)qb.onclick=exportBackup;
+}
+function tileHTML(c){
+  const net=c.network||detectNetwork(c.number);
+  const s=expiryStatus(c);
+  return `<button class="tile c-${esc(c.color||'midnight')}" data-id="${esc(c.id)}">
+    <div class="row"><span class="bank">${esc(c.bank||'Card')}</span><span style="display:flex;gap:6px;align-items:center">${s?`<span class="pill ${s.cls}" style="background:rgba(0,0,0,.45)">${s.txt}</span>`:''}<span class="type">${esc(c.type||'credit')}</span></span></div>
+    <div class="emv"></div>
+    <div class="num">${maskNum(c.number,net)}</div>
+    <div class="row"><span class="nick">${esc(c.nickname||c.holder||'')}</span><span class="net">${esc(NETWORKS[net]||'')}</span></div>
+  </button>`;
+}
+function renderList(){
+  const q=view.q.trim().toLowerCase();
+  let cards=V.cards.filter(c=>view.filter==='all'||c.type===view.filter);
+  if(q)cards=cards.filter(c=>[c.nickname,c.bank,c.holder,NETWORKS[c.network],c.notes,c.rewards,(c.number||'').slice(-4)].join(' ').toLowerCase().includes(q));
+  cards.sort((a,b)=>(a.bank||'').localeCompare(b.bank||'')||(a.nickname||'').localeCompare(b.nickname||''));
+  $('#list').innerHTML=cards.length?cards.map(tileHTML).join(''):
+    `<div class="empty">${V.cards.length?'No cards match.':'No cards yet.<br>Tap <b>+</b> to add your first card.'}</div>`;
+}
+
+/* ============ Detail ============ */
+function field(label,value,opts={}){
+  if(value===undefined||value===null||value==='')return '';
+  const shown=opts.html?value:esc(value);
+  return `<div class="field"><div class="grow"><div class="l">${esc(label)}</div><div class="v ${opts.mono?'mono':''}">${shown}</div></div>${opts.copy?`<button class="copy" data-copy="${esc(opts.copy)}">Copy</button>`:''}</div>`;
+}
+function openDetail(id){
+  const c=V.cards.find(x=>x.id===id);if(!c)return;
+  const net=c.network||detectNetwork(c.number);
+  const r=view.reveal;
+  const num=r?fmtNum(c.number,net):maskNum(c.number,net);
+  const exp=c.expMonth&&c.expYear?`${c.expMonth}/${String(c.expYear).slice(-2)}`:'';
+  const nd=c.dueDay?nextDay(c.dueDay):null, ns=c.statementDay?nextDay(c.statementDay):null;
+  openSheet(`
+    <div class="sheet-h"><h2>${esc(c.nickname||c.bank||'Card')}</h2>
+      <div style="display:flex;gap:8px"><button class="icon-btn" id="revealBtn" aria-label="Show or hide numbers">${r?ICON.eyeOff:ICON.eye}</button><button class="icon-btn" id="closeBtn" aria-label="Close">${ICON.x}</button></div></div>
+    <div class="tile c-${esc(c.color||'midnight')}" style="cursor:default">
+      <div class="row"><span class="bank">${esc(c.bank||'Card')}</span><span class="type">${esc(c.type||'credit')}</span></div>
+      <div class="emv"></div>
+      <div class="num">${num}</div>
+      <div class="row"><span class="nick">${esc(c.holder||'')}${exp?' · '+exp:''}</span><span class="net">${esc(NETWORKS[net]||'')}</span></div>
+    </div>
+    <div class="fields">
+      ${field('Card number',num,{mono:true,copy:c.number?'number':''})}
+      ${field('Name on card',c.holder,{copy:c.holder?'holder':''})}
+      ${field('Expiry',exp,{mono:true,copy:exp?'exp':''})}
+      ${field('CVV',c.cvv?(r?c.cvv:'•'.repeat(c.cvv.length)):'',{mono:true,copy:'cvv'})}
+    </div>
+    ${c.type==='credit'&&(c.limit||c.statementDay||c.dueDay||c.annualFee||c.feeWaiver)?`
+    <div class="section-t">Billing</div>
+    <div class="fields">
+      ${field('Credit limit',c.limit?inr(c.limit):'')}
+      ${field('Statement date',c.statementDay?`${ordinal(c.statementDay)} of every month · next ${fmtDate(ns)}`:'')}
+      ${field('Payment due date',c.dueDay?`${ordinal(c.dueDay)} of every month · next ${fmtDate(nd)} (${daysUntil(nd)} days)`:'')}
+      ${field('Annual fee',c.annualFee?inr(c.annualFee):'')}
+      ${field('Fee waiver',c.feeWaiver)}
+    </div>`:''}
+    ${(c.rewards||c.care||c.notes)?`
+    <div class="section-t">More</div>
+    <div class="fields">
+      ${field('Rewards / benefits',c.rewards)}
+      ${c.care?field('Customer care',`<a href="tel:${esc(c.care.replace(/[^\d+]/g,''))}" style="color:var(--accent)">${esc(c.care)}</a>`,{html:true}):''}
+      ${field('Notes',c.notes)}
+    </div>`:''}
+    <div class="btns"><button class="btn" id="editBtn">Edit</button><button class="btn danger" id="delBtn">Delete</button></div>
+    <p class="muted" style="font-size:12px;text-align:center;margin-top:14px">Updated ${new Date(c.updated||c.created||Date.now()).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</p>
+  `);
+  $('#closeBtn').onclick=()=>closeSheet();
+  $('#revealBtn').onclick=()=>{view.reveal=!view.reveal;openDetail(id)};
+  $('#editBtn').onclick=()=>openEdit(id);
+  $('#delBtn').onclick=async()=>{
+    if(!confirm(`Delete "${c.nickname||c.bank||'this card'}"? This cannot be undone.`))return;
+    V.cards=V.cards.filter(x=>x.id!==id);await persist();closeSheet();renderTop();renderList();toast('Card deleted');
+  };
+  sheetEl.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.copy;const val=k==='exp'?exp:k==='number'?c.number:c[k];
+    copy(val,k==='number'||k==='cvv');
+  });
+}
+async function copy(text,secret){
+  try{await navigator.clipboard.writeText(String(text));toast(secret?'Copied · clipboard clears in 45s':'Copied')}
+  catch(e){toast('Copy failed')}
+  if(secret){setTimeout(()=>{navigator.clipboard.writeText('').catch(()=>{})},45000)}
+}
+
+/* ============ Add / Edit ============ */
+function openEdit(id){
+  const c=id?V.cards.find(x=>x.id===id):{type:'credit',color:COLORS[V.cards.length%COLORS.length]};
+  const exp=c.expMonth&&c.expYear?`${c.expMonth}/${String(c.expYear).slice(-2)}`:'';
+  const days=Array.from({length:31},(_,i)=>i+1);
+  const dayOpts=sel=>`<option value="">—</option>`+days.map(d=>`<option ${+sel===d?'selected':''} value="${d}">${ordinal(d)}</option>`).join('');
+  openSheet(`
+    <div class="sheet-h"><h2>${id?'Edit card':'Add card'}</h2><button class="icon-btn" id="closeBtn" aria-label="Close">${ICON.x}</button></div>
+    <form id="ef" autocomplete="off">
+      <div class="row2">
+        <div><label>Type</label><select id="f_type"><option value="credit" ${c.type==='credit'?'selected':''}>Credit</option><option value="debit" ${c.type==='debit'?'selected':''}>Debit</option><option value="prepaid" ${c.type==='prepaid'?'selected':''}>Prepaid / Forex</option></select></div>
+        <div><label>Network</label><select id="f_network"><option value="">Auto-detect</option>${Object.entries(NETWORKS).filter(([k])=>k!=='other').map(([k,v])=>`<option value="${k}" ${c.network===k?'selected':''}>${v}</option>`).join('')}<option value="other" ${c.network==='other'?'selected':''}>Other</option></select></div>
+      </div>
+      <label>Bank / issuer</label><input id="f_bank" value="${esc(c.bank)}" placeholder="e.g. HDFC Bank" list="banks">
+      <datalist id="banks">${['HDFC Bank','ICICI Bank','SBI Card','Axis Bank','Kotak Mahindra Bank','IDFC FIRST Bank','American Express','AU Small Finance Bank','IndusInd Bank','Yes Bank','RBL Bank','Standard Chartered','HSBC','Federal Bank','OneCard','Bank of Baroda','Union Bank','Canara Bank'].map(b=>`<option value="${b}">`).join('')}</datalist>
+      <label>Card nickname</label><input id="f_nickname" value="${esc(c.nickname)}" placeholder="e.g. Regalia Gold, Amazon Pay">
+      <label>Card number</label><input id="f_number" inputmode="numeric" value="${esc(fmtNum(c.number,c.network||detectNetwork(c.number)))}" placeholder="1234 5678 9012 3456" autocomplete="off">
+      <div class="warn" id="numWarn"></div>
+      <label>Name on card</label><input id="f_holder" value="${esc(c.holder)}" placeholder="As printed" style="text-transform:uppercase">
+      <div class="row2">
+        <div><label>Expiry (MM/YY)</label><input id="f_exp" inputmode="numeric" value="${esc(exp)}" placeholder="08/29" maxlength="5"></div>
+        <div><label>CVV (optional)</label><input id="f_cvv" inputmode="numeric" value="${esc(c.cvv)}" maxlength="4" placeholder="•••"></div>
+      </div>
+      <div id="billing" ${c.type==='credit'?'':'hidden'}>
+        <div class="section-t">Billing</div>
+        <div class="row2">
+          <div><label>Credit limit (₹)</label><input id="f_limit" inputmode="numeric" value="${esc(c.limit)}" placeholder="300000"></div>
+          <div><label>Annual fee (₹)</label><input id="f_annualFee" inputmode="numeric" value="${esc(c.annualFee)}" placeholder="2500"></div>
+        </div>
+        <div class="row2">
+          <div><label>Statement date</label><select id="f_statementDay">${dayOpts(c.statementDay)}</select></div>
+          <div><label>Payment due date</label><select id="f_dueDay">${dayOpts(c.dueDay)}</select></div>
+        </div>
+        <label>Fee waiver condition</label><input id="f_feeWaiver" value="${esc(c.feeWaiver)}" placeholder="e.g. Spend ₹3L in a year">
+      </div>
+      <div class="section-t">More</div>
+      <label>Rewards / benefits</label><input id="f_rewards" value="${esc(c.rewards)}" placeholder="e.g. 5% on Amazon, lounge access">
+      <label>Customer care number</label><input id="f_care" inputmode="tel" value="${esc(c.care)}" placeholder="1800 …">
+      <label>Notes</label><textarea id="f_notes" placeholder="Anything else">${esc(c.notes)}</textarea>
+      <label>Card colour</label>
+      <div class="colors">${COLORS.map(col=>`<input type="radio" name="color" id="col_${col}" value="${col}" ${c.color===col?'checked':''}><label for="col_${col}" class="c-${col}" title="${col}"></label>`).join('')}</div>
+      <div class="btns"><button type="button" class="btn" id="cancelBtn">Cancel</button><button type="submit" class="btn primary">Save</button></div>
+    </form>`);
+  const numEl=$('#f_number'),warn=$('#numWarn'),netEl=$('#f_network');
+  const checkNum=()=>{
+    const raw=numEl.value.replace(/\D/g,'').slice(0,19);
+    const net=netEl.value||detectNetwork(raw);
+    const pos=numEl.selectionStart, before=numEl.value.length;
+    numEl.value=fmtNum(raw,net);
+    if(document.activeElement===numEl){const p=pos+(numEl.value.length-before);numEl.setSelectionRange(p,p)}
+    warn.textContent=raw.length>=12&&!luhn(raw)?'This number fails the checksum — double-check for a typo.':raw?(NETWORKS[detectNetwork(raw)]?`Detected: ${NETWORKS[detectNetwork(raw)]}`:''):'';
+    warn.style.color=raw.length>=12&&!luhn(raw)?'var(--warn)':'var(--muted)';
+  };
+  numEl.oninput=checkNum;netEl.onchange=checkNum;checkNum();
+  $('#f_exp').oninput=e=>{let v=e.target.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);e.target.value=v};
+  $('#f_cvv').oninput=e=>{e.target.value=e.target.value.replace(/\D/g,'')};
+  ['f_limit','f_annualFee'].forEach(i=>$('#'+i).oninput=e=>{e.target.value=e.target.value.replace(/\D/g,'')});
+  $('#f_type').onchange=e=>{$('#billing').hidden=e.target.value!=='credit'};
+  const back=()=>id?openDetail(id):closeSheet();
+  $('#closeBtn').onclick=back;$('#cancelBtn').onclick=back;
+  $('#ef').onsubmit=async e=>{
+    e.preventDefault();
+    const g=k=>$('#f_'+k).value.trim();
+    const number=g('number').replace(/\D/g,'');
+    let expMonth='',expYear='';
+    const ex=g('exp');
+    if(ex){
+      const m=ex.match(/^(\d{1,2})\/?(\d{2})$/);
+      if(!m||+m[1]<1||+m[1]>12){toast('Expiry should look like 08/29');$('#f_exp').focus();return}
+      expMonth=m[1].padStart(2,'0');expYear='20'+m[2];
+    }
+    if(!g('bank')&&!g('nickname')&&!number){toast('Add at least a bank, nickname or number');return}
+    const now=Date.now();
+    const card={...c,
+      id:c.id||uid(),type:g('type'),network:netEl.value||detectNetwork(number),
+      bank:g('bank'),nickname:g('nickname'),number,holder:g('holder').toUpperCase(),
+      expMonth,expYear,cvv:g('cvv'),
+      limit:g('limit'),annualFee:g('annualFee'),statementDay:g('statementDay'),dueDay:g('dueDay'),feeWaiver:g('feeWaiver'),
+      rewards:g('rewards'),care:g('care'),notes:g('notes'),
+      color:(sheetEl.querySelector('input[name=color]:checked')||{}).value||'midnight',
+      created:c.created||now,updated:now};
+    if(id)V.cards=V.cards.map(x=>x.id===id?card:x);else V.cards.push(card);
+    await persist();renderTop();renderList();openDetail(card.id);toast(id?'Saved':'Card added');
+  };
+}
+
+/* ============ Settings ============ */
+function openSettings(){
+  const lb=V.meta.lastBackup;
+  openSheet(`
+    <div class="sheet-h"><h2>Settings</h2><button class="icon-btn" id="closeBtn" aria-label="Close">${ICON.x}</button></div>
+    <div class="fields">
+      <div class="set-item"><div><div>Auto-lock after</div><div class="muted" style="font-size:12px">Also locks 30s after you leave the app</div></div>
+        <select id="autolock">${[1,3,5,10].map(m=>`<option value="${m}" ${settings.autolock===m?'selected':''}>${m} min</option>`).join('')}</select></div>
+    </div>
+    <div class="section-t">Backup</div>
+    <div class="fields">
+      <div class="set-item"><div><div>Export encrypted backup</div><div class="muted" style="font-size:12px">${lb?'Last: '+new Date(lb).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Never backed up'}. Locked with your master password.</div></div><button class="btn" id="expBtn">Export</button></div>
+      <div class="set-item"><div><div>Import backup</div><div class="muted" style="font-size:12px">Merges cards from a Card Vault backup</div></div><button class="btn" id="impBtn">Import</button></div>
+      <div class="set-item"><div><div>Import from Bitwarden</div><div class="muted" style="font-size:12px">Bitwarden → Export vault → <b>.json</b> (unencrypted). Delete that file after importing.</div></div><button class="btn" id="bwBtn">Import</button></div>
+    </div>
+    <div class="section-t">Security</div>
+    <div class="fields">
+      <div class="set-item"><div>Change master password</div><button class="btn" id="pwBtn">Change</button></div>
+      <div class="set-item"><div><div style="color:var(--danger)">Erase everything</div><div class="muted" style="font-size:12px">Deletes all cards from this phone</div></div><button class="btn danger" id="wipeBtn">Erase</button></div>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:16px;line-height:1.5">Your cards are encrypted with AES-256 (key derived from your master password with PBKDF2, ${ITER.toLocaleString('en-IN')} rounds) and stored only in this browser on this phone. The app has no network access, so nothing is ever uploaded.</p>
+  `);
+  $('#closeBtn').onclick=()=>closeSheet();
+  $('#autolock').onchange=e=>{settings.autolock=+e.target.value;saveSettings();bump();toast('Saved')};
+  $('#expBtn').onclick=exportBackup;
+  $('#impBtn').onclick=importBackup;
+  $('#bwBtn').onclick=importBitwarden;
+  $('#pwBtn').onclick=openChangePw;
+  $('#wipeBtn').onclick=()=>{
+    const t=prompt('This permanently deletes all cards on this phone. Type DELETE to confirm.');
+    if(t!=='DELETE')return;
+    localStorage.removeItem(STORE);K=null;V=null;SALT=null;closeSheet();renderLock();toast('Vault erased');
+  };
+}
+async function exportBackup(){
+  V.meta.lastBackup=Date.now();await persist();
+  const blob=JSON.parse(localStorage.getItem(STORE));
+  const d=new Date().toISOString().slice(0,10);
+  await downloadJSON(blob,`cardvault-backup-${d}.json`);
+  renderTop();if(sheetOpen)openSettings();
+  toast('Backup saved — keep it somewhere safe');
+}
+function mergeCards(incoming){
+  let added=0,updated=0;
+  for(const c of incoming){
+    if(!c)continue;c.id=c.id||uid();
+    const i=V.cards.findIndex(x=>x.id===c.id||(x.number&&c.number&&x.number===c.number));
+    if(i<0){V.cards.push(c);added++}
+    else if((c.updated||0)>(V.cards[i].updated||0)){V.cards[i]={...V.cards[i],...c,id:V.cards[i].id};updated++}
+  }
+  return {added,updated};
+}
+async function importBackup(){
+  const blob=await pickFile();if(!blob)return;
+  if(blob.app!=='cardvault'){toast('Not a Card Vault backup');return}
+  const pw=prompt('Master password used for that backup:');if(pw===null)return;
+  try{
+    const r=await decryptBlob(blob,pw);
+    const {added,updated}=mergeCards(r.data.cards||[]);
+    await persist();renderTop();renderList();closeSheet();toast(`Imported: ${added} new, ${updated} updated`);
+  }catch(e){toast('Wrong password for that backup')}
+}
+async function importBitwarden(){
+  const j=await pickFile();if(!j)return;
+  if(j.encrypted){toast('That export is encrypted. Export as plain .json from Bitwarden.');return}
+  if(!Array.isArray(j.items)){toast('Not a Bitwarden JSON export');return}
+  const brandMap={visa:'visa',mastercard:'mastercard',amex:'amex','american express':'amex',rupay:'rupay',discover:'discover',diners:'diners','diners club':'diners',maestro:'maestro',jcb:'jcb'};
+  const now=Date.now();
+  const cards=j.items.filter(i=>i.type===3&&i.card).map((i,n)=>{
+    const k=i.card, number=(k.number||'').replace(/\D/g,'');
+    const yr=k.expYear?String(k.expYear):'';
+    return {id:uid(),type:'credit',network:brandMap[(k.brand||'').toLowerCase()]||detectNetwork(number),
+      bank:'',nickname:i.name||'',number,holder:(k.cardholderName||'').toUpperCase(),
+      expMonth:k.expMonth?String(k.expMonth).padStart(2,'0'):'',expYear:yr.length===2?'20'+yr:yr,cvv:k.code||'',
+      notes:i.notes||'',color:COLORS[(V.cards.length+n)%COLORS.length],created:now,updated:now};
+  });
+  if(!cards.length){toast('No cards found in that file');return}
+  const {added,updated}=mergeCards(cards);
+  await persist();renderTop();renderList();closeSheet();
+  toast(`Imported ${added} card(s)${updated?`, ${updated} updated`:''}. Now delete the Bitwarden export file.`);
+}
+function openChangePw(){
+  openSheet(`
+    <div class="sheet-h"><h2>Change master password</h2><button class="icon-btn" id="closeBtn" aria-label="Close">${ICON.x}</button></div>
+    <form id="cpf">
+      <label>Current password</label><input type="password" id="cp0" autocomplete="current-password" required>
+      <label>New password</label><input type="password" id="cp1" autocomplete="new-password" required>
+      <label>Confirm new password</label><input type="password" id="cp2" autocomplete="new-password" required>
+      <p class="err" id="cperr"></p>
+      <div class="btns"><button type="submit" class="btn primary" id="cpgo">Change password</button></div>
+      <p class="muted" style="font-size:12px">Old backups will still need the old password.</p>
+    </form>`);
+  $('#closeBtn').onclick=()=>openSettings();
+  $('#cpf').onsubmit=async e=>{
+    e.preventDefault();const err=$('#cperr');err.textContent='';
+    const p0=$('#cp0').value,p1=$('#cp1').value;
+    if(p1.length<6){err.textContent='Use at least 6 characters.';return}
+    if(p1!==$('#cp2').value){err.textContent='New passwords do not match.';return}
+    $('#cpgo').disabled=true;
+    try{await decryptBlob(JSON.parse(localStorage.getItem(STORE)),p0)}catch(x){err.textContent='Current password is wrong.';$('#cpgo').disabled=false;return}
+    await createVault(p1,V);closeSheet();toast('Master password changed');
+  };
+}
+
+/* ============ Boot ============ */
+if(!window.crypto||!crypto.subtle){
+  app.innerHTML='<div class="lock"><h1>Card Vault</h1><p class="muted">This page must be opened over https (or installed from your hosted link) for encryption to work.</p></div>';
+}else{
+  renderLock();
+}
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
