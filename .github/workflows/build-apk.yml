@@ -77,9 +77,49 @@ jobs:
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(TickPlugin.class);
                   super.onCreate(savedInstanceState);
                   // Hide card details from screenshots and the recent-apps screen
                   getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
+              }
+          }
+          EOF
+          cat > android/app/src/main/java/com/vinay/cardvault/TickPlugin.java <<'EOF'
+          package com.vinay.cardvault;
+
+          import android.os.Build;
+          import android.view.HapticFeedbackConstants;
+          import android.view.View;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          // Gentle system haptics (the same ticks Android uses for keyboards and pickers)
+          @CapacitorPlugin(name = "Tick")
+          public class TickPlugin extends Plugin {
+              @PluginMethod
+              public void tick(PluginCall call) {
+                  final String kind = call.getString("kind", "tap");
+                  getActivity().runOnUiThread(() -> {
+                      View view = getBridge().getWebView();
+                      int effect;
+                      switch (kind) {
+                          case "tick":
+                              effect = HapticFeedbackConstants.CLOCK_TICK;
+                              break;
+                          case "confirm":
+                              effect = Build.VERSION.SDK_INT >= 30 ? HapticFeedbackConstants.CONFIRM : HapticFeedbackConstants.CONTEXT_CLICK;
+                              break;
+                          case "reject":
+                              effect = Build.VERSION.SDK_INT >= 30 ? HapticFeedbackConstants.REJECT : HapticFeedbackConstants.LONG_PRESS;
+                              break;
+                          default:
+                              effect = HapticFeedbackConstants.CONTEXT_CLICK;
+                      }
+                      view.performHapticFeedback(effect);
+                      call.resolve();
+                  });
               }
           }
           EOF
