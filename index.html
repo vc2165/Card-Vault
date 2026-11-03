@@ -233,7 +233,7 @@ const uid = () => b64(crypto.getRandomValues(new Uint8Array(9))).replace(/[+/=]/
 const inr = n => '₹' + Number(n||0).toLocaleString('en-IN');
 const STORE = 'cardvault.v1', SETTINGS = 'cardvault.settings';
 const ITER = 310000;
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 
 /* Native (APK) bridge — present only when running as the installed Android app */
 const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
@@ -810,13 +810,14 @@ function detailView(id){
       ${c.care?field('Customer care',`<a href="tel:${esc(c.care.replace(/[^\d+]/g,''))}" style="color:var(--accent)">${esc(c.care)}</a>`,{html:true}):''}
       ${field('Notes',c.notes)}
     </div>`:''}
-    <div class="btns"><button class="btn" id="editBtn">Edit</button><button class="btn danger" id="delBtn">Delete</button></div>
+    <div class="btns"><button class="btn" id="shareBtn">Share</button><button class="btn" id="editBtn">Edit</button><button class="btn danger" id="delBtn">Delete</button></div>
     <p class="muted small" style="text-align:center;margin-top:14px">Updated ${new Date(c.updated||c.created||Date.now()).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</p>`},
   bind:()=>{
     const c=V.cards.find(x=>x.id===id);if(!c)return;
     $('#closeBtn').onclick=popSheet;
     $('#revealBtn').onclick=()=>{toggleReveal(id);refreshSheet()};
     $('#editBtn').onclick=()=>pushSheet(editView(id));
+    $('#shareBtn').onclick=()=>pushSheet(shareView(id));
     $('#delBtn').onclick=async()=>{
       if(!await dialog({title:'Delete this card?',message:`"${nameOf(c)}" will be removed from this phone. This cannot be undone.`,ok:'Delete',danger:true}))return;
       V.cards=V.cards.filter(x=>x.id!==id);if(V.meta.paid)delete V.meta.paid[id];cleanupGroups();
@@ -832,6 +833,62 @@ async function copy(text,secret){
   try{await write(String(text));haptic('tap');toast(secret?'Copied · clipboard clears in 45s':'Copied')}
   catch(e){toast('Copy failed')}
   if(secret)setTimeout(()=>{write(' ').catch(()=>{})},45000);
+}
+
+/* ============ Share card details ============ */
+const SHARE_DEFAULTS={card:true,number:true,last4:false,holder:true,exp:true,cvv:false,billing:false};
+function shareView(id){
+  const c=V.cards.find(x=>x.id===id),o={...SHARE_DEFAULTS};
+  const net=netOf(c),exp=expOf(c);
+  const text=()=>{
+    const L=[];
+    if(o.card)L.push([c.bank,c.nickname].filter(Boolean).join(' – ')+(NETWORKS[net]?` (${NETWORKS[net]}${c.type?' '+c.type:''})`:''));
+    if(o.number&&c.number)L.push('Card number: '+(o.last4?'ending '+last4(c):fmtNum(c.number,net)));
+    if(o.holder&&c.holder)L.push('Name on card: '+c.holder);
+    if(o.exp&&exp)L.push('Expiry: '+exp);
+    if(o.cvv&&c.cvv)L.push('CVV: '+c.cvv);
+    if(o.billing&&c.type==='credit'){
+      if(c.statementDay)L.push(`Statement date: ${ordinal(c.statementDay)} of every month`);
+      if(c.dueDay)L.push(`Payment due: ${ordinal(c.dueDay)} of every month`);
+    }
+    return L.join('\n');
+  };
+  const row=(k,label,hint,dis)=>`<label class="check" style="margin:12px 0 0;${dis?'opacity:.4':''}"><input type="checkbox" data-k="${k}" ${o[k]?'checked':''} ${dis?'disabled':''}> <span>${label}${hint?`<span class="muted small" style="display:block">${hint}</span>`:''}</span></label>`;
+  return {html:()=>`
+    <div class="sheet-h"><div class="l"><button class="icon-btn" id="backBtn" aria-label="Back">${ICON.back}</button><h2>Share card details</h2></div></div>
+    <p class="muted small" style="margin:0">Choose what to include. It's sent as a text message through any app you pick (WhatsApp, SMS, email…).</p>
+    ${row('card','Bank and card name')}
+    ${row('number','Card number','',!c.number)}
+    ${c.number?`<div style="margin-left:30px">${row('last4','Only the last 4 digits','Enough for someone to identify the card')}</div>`:''}
+    ${row('holder','Name on card','',!c.holder)}
+    ${row('exp','Expiry date','',!exp)}
+    ${row('cvv','CVV',c.cvv?'Not recommended — anyone with the number, expiry and CVV can make online payments':'',!c.cvv)}
+    ${c.type==='credit'?row('billing','Statement and due dates','',!(c.statementDay||c.dueDay)):''}
+    <div class="section-t">Preview</div>
+    <div class="fields" style="padding:12px 14px;white-space:pre-wrap;font-size:14px;line-height:1.5" id="shPrev"></div>
+    <div class="warn" id="shWarn" style="margin-top:8px"></div>
+    <div class="btns"><button class="btn" id="shCopy">Copy</button><button class="btn primary" id="shGo">Share</button></div>
+    <p class="muted small" style="margin-top:12px">Once shared, the details leave Card Vault's encryption. Share only with people you trust, and delete the message after they've used it.</p>`,
+  bind:()=>{
+    const paint=()=>{const t=text();$('#shPrev').textContent=t||'Nothing selected';$('#shGo').disabled=$('#shCopy').disabled=!t;
+      $('#shWarn').textContent=o.cvv&&o.number&&!o.last4?'⚠ Number + expiry + CVV together is everything needed to use this card online.':''};
+    sheetEl.querySelectorAll('[data-k]').forEach(i=>i.onchange=()=>{o[i.dataset.k]=i.checked;paint()});
+    paint();
+    $('#backBtn').onclick=popSheet;
+    $('#shCopy').onclick=()=>copy(text(),o.number&&!o.last4||o.cvv);
+    $('#shGo').onclick=async()=>{
+      const t=text();if(!t)return;
+      if(o.cvv&&!(await dialog({title:'Share the CVV?',message:'With the card number, expiry and CVV, anyone can make online payments on this card. Only continue if you trust this person completely.',ok:'Share anyway',danger:true})))return;
+      picking=true;
+      try{
+        if(NATIVE)await nat('Share','share',{title:nameOf(c),text:t,dialogTitle:'Share card details'});
+        else if(navigator.share)await navigator.share({title:nameOf(c),text:t});
+        else{await copy(t,true);return}
+        haptic('success');
+      }catch(e){if(!/cancel|abort/i.test((e&&(e.message||e.name))||''))toast('Could not share: '+((e&&e.message)||e))}
+      finally{setTimeout(()=>{picking=false},800)}
+    };
+  }};
 }
 
 /* ============ Add / Edit ============ */
