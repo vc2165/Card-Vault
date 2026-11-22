@@ -233,7 +233,7 @@ const uid = () => b64(crypto.getRandomValues(new Uint8Array(9))).replace(/[+/=]/
 const inr = n => '₹' + Number(n||0).toLocaleString('en-IN');
 const STORE = 'cardvault.v1', SETTINGS = 'cardvault.settings';
 const ITER = 310000;
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.3';
 
 /* Native (APK) bridge — present only when running as the installed Android app */
 const NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
@@ -690,7 +690,7 @@ function renderSummary(){
   const cards=V.cards,credit=cards.filter(c=>c.type==='credit');
   const limit=totalLimit(),hasShared=credit.some(c=>c.limitGroup);
   $('#count').textContent=`${cards.length} card${cards.length===1?'':'s'} · encrypted on this phone`;
-  const dues=credit.filter(c=>c.dueDay).map(c=>({c,d:nextDay(c.dueDay)})).sort((a,b)=>a.d-b.d);
+  const dues=credit.filter(c=>c.dueDay).map(c=>({c,d:nextDay(c.dueDay)})).sort((a,b)=>(isPaid(a.c,a.d)-isPaid(b.c,b.d))||(a.d-b.d));
   const expiring=cards.filter(c=>expiryStatus(c));
   let html='';
   if(cards.length)html+=`<div class="summary">
